@@ -19,7 +19,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QFileSystemWatcher, QTimer
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
@@ -101,6 +101,15 @@ class ScoreViewer(QMainWindow):
         )
         QShortcut(QKeySequence("Ctrl+Up"), self).activated.connect(self._go_up)
 
+        # フォルダ監視: 現在フォルダにファイルが追加/削除されたら一覧を自動更新。
+        # 大量追加や rename の連続イベントをまとめるため短いデバウンスを噛ませる。
+        self._watcher = QFileSystemWatcher(self)
+        self._refresh_timer = QTimer(self)
+        self._refresh_timer.setSingleShot(True)
+        self._refresh_timer.setInterval(200)
+        self._refresh_timer.timeout.connect(self._populate)
+        self._watcher.directoryChanged.connect(lambda _p: self._refresh_timer.start())
+
         self._set_root(self._root)
 
     # ---- フォルダ一覧の再構築 ----
@@ -113,6 +122,19 @@ class ScoreViewer(QMainWindow):
         self._path_label.setText(Path(path).name or path)
         self._path_label.setToolTip(path)
         self.setWindowTitle(f"{Path(path).name} — Score Viewer")
+        # 監視対象をこのフォルダだけに張り替える（移動しても1階層だけ見る）
+        old = self._watcher.directories()
+        if old:
+            self._watcher.removePaths(old)
+        self._watcher.addPath(path)
+        self._populate()
+
+    def _populate(self) -> None:
+        """現在フォルダ (self._root) の一覧を作り直す。選択は可能なら維持する。"""
+        path = self._root
+        # 自動更新でも選択位置を失わないよう、現在の選択パスを覚えておく
+        cur = self._list.currentItem()
+        selected = cur.data(Qt.ItemDataRole.UserRole) if cur else None
 
         self._list.clear()
         style = self.style()
@@ -145,6 +167,13 @@ class ScoreViewer(QMainWindow):
             it = QListWidgetItem(style.standardIcon(QStyle.StandardPixmap.SP_FileIcon), p.name)
             it.setData(Qt.ItemDataRole.UserRole, str(p))
             self._list.addItem(it)
+
+        # 作り直し後、同じパスがまだあれば選択を復元する
+        if selected:
+            for i in range(self._list.count()):
+                if self._list.item(i).data(Qt.ItemDataRole.UserRole) == selected:
+                    self._list.setCurrentRow(i)
+                    break
 
     def _go_up(self) -> None:
         parent = str(Path(self._root).parent)
