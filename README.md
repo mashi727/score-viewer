@@ -9,6 +9,14 @@ PySide6 + QtPdf 製。区切り（`-` / `_` / 空白）、Horn 前後の序数�
 `1,3` のようなパート番号の揺れを吸収して曲名だけを取り出す（曲名側の "9th" や
 年 "2025" は保持する）。抽出規則は `src/score_viewer/naming.py`。
 
+## 考え方
+
+何が問題で、それをどう解いているかを PAD（問題分析図）で示します。各段の詳細は下の各節を参照してください。
+
+<img src="docs/pad/concept.png" alt="考え方の PAD。楽譜 PDF の曲名をすぐ写し取るため、楽譜のフォルダを開き、人が選んだ PDF を表示し、ファイル名から曲名を取り出してコピーする" width="100%">
+
+<sub>図の元は [`docs/pad/concept.spd`](docs/pad/concept.spd)。[padkit](https://github.com/mashi727/padkit) で検査・描画しています。</sub>
+
 ## 導入・実行（uv）
 
 CLI として使う（推奨。仮想環境は uv 管理・プロジェクト外）:
